@@ -1,0 +1,14 @@
+Package: NuclearFRAP
+Version: 0.54.0
+Depends: R (>= 3.0.2), rcell2 (>= 0.0.3), R.utils (>= 1.28.4), chron
+        (>= 2.3.44), gridExtra (>= 0.9.1)
+Date: 2020-11-09
+Title: Nuclear FRAP model fit and profile likelihood analysis
+Author: Alan Bush
+Maintainer: Alan Bush <abush@fbmc.fcen.uba.ar>
+Description: This package provides methods to load a Nuclear FRAP experiment,
+    run a model fit and do profile likelihood analysis. 
+License: LGPL (>= 2.1)
+LazyLoad: TRUE
+NeedsCompilation: no
+Packaged: 2022-05-24 09:52:27 UTC; root

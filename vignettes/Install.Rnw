@@ -1,0 +1,54 @@
+
+\documentclass{article}
+
+\usepackage{url}
+\usepackage{natbib}
+\usepackage{graphics}
+\usepackage{amsmath}
+\usepackage{indentfirst}
+\usepackage[utf8]{inputenc}
+\usepackage{fullpage}
+
+% \VignetteIndexEntry{Install-NuclearFRAP}
+
+\begin{document}
+
+\SweaveOpts{pdf = TRUE}
+\setkeys{Gin}{width=0.5\textwidth}
+
+<<foo,include=FALSE,echo=FALSE>>=
+options(keep.source = TRUE, width = 100)
+foo <- packageDescription("NuclearFRAP")
+@
+
+\title{Install NuclearFRAP (Version \Sexpr{foo$Version})}
+\author{Alan Bush}
+\maketitle
+
+\section{System Requirments}
+
+In order to run NuclearFRAP you need to have R (version 3.0.2 or higher) installed in your system. The executable should be in your environmental PATH variable. Typing \verb@R@ in the console should open the corresponding program. In windows you also require Rtools installed.  
+
+NuclearFRAP depends on serveral R packages. To install them from R
+ 
+<<eval=FALSE,echo=TRUE>>=
+install.packages(c("Rcell","chron","gridExtra"))
+source("http://bioconductor.org/biocLite.R")
+biocLite("EBImage")
+@
+
+NuclearFRAP is not on CRAN, so you have to install it from the local tar.gz. To do so from the command line 
+
+\begin{verbatim}
+R CMD INSTALL NuclearFRAP.tar.gz
+\end{verbatim}
+
+Once installed you can load the package 
+
+<<library>>=
+library(NuclearFRAP)
+@
+
+Note that installing and loading a package are two different things, and you have to load the package using \verb@library@ at the begging of every session, even if you have just installed it. 
+
+\end{document}

@@ -1,0 +1,299 @@
+
+\documentclass{article}
+
+\usepackage{url}
+\usepackage{natbib}
+\usepackage{graphics}
+\usepackage{amsmath}
+\usepackage{indentfirst}
+\usepackage[utf8]{inputenc}
+\usepackage{fullpage}
+
+% \VignetteIndexEntry{Getting-Started-with-NuclearFRAP}
+
+\begin{document}
+
+\SweaveOpts{pdf = TRUE}
+\SweaveOpts{prefix.string=fig/NuclearFRAP}
+<<include=FALSE,echo=FALSE>>=
+  if(!file.exists("fig")) dir.create("fig")  
+@
+\setkeys{Gin}{width=0.5\textwidth}
+
+<<foo,include=FALSE,echo=FALSE>>=
+options(keep.source = TRUE, width = 100)
+foo <- packageDescription("NuclearFRAP")
+@
+
+\title{Getting Started with NuclearFRAP (Version \Sexpr{foo$Version})}
+\author{Alan Bush}
+\maketitle
+
+\section{Introduction}
+
+\verb@NuclearFRAP@ provides functions to load, visualize, run model fits and profile likelihood analysis on nuclear FRAP experiments. 
+To install the package follow the install vignette.
+
+<<eval=FALSE,echo=TRUE>>=
+vignette("Install")
+@
+
+If you already have the package installed, load it with
+
+<<eval=TRUE,echo=TRUE>>=
+library(NuclearFRAP)
+@
+
+\section{Load a nuclear FRAP experiment to R}
+
+After finishing all the manual analysis of an experiment, you should end with a directory containing the following files:
+\begin{description}
+\item[\textit{levData (or posData):}] a tab delimited text file, with the description of each position. This file should have columns 'lev' (or 'pos') with the position number, 'pb' with the photobleaching order, and other columns describing the strain, cytokinesis state, etc. 
+\item[\textit{OIF-date.txt:}] text file with the image capture date of each OIF file. This can be created by running
+	\begin{verbatim}
+		sfk filter -ls+"ImageCaputre" -file .txt > OIF-date.txt
+	\end{verbatim}
+\item[\textit{lev??-time-series.xls:}] tab delimited text file created by ImageJ's plugin Time Series Analyzer v2
+\item[\textit{lev??-tif-fname.txt:}] text file with the file names of all the tif files of the position
+\item[\textit{lev??.stk.jpg:}] reference image, with the cell and the quantified regions drawn on it. 
+\end{description}
+
+To load all this data into R, use the \verb@loadFrapPairs@ function of \verb@NuclearFRAP@. This function returns a cell.data object that can be manipulated with \verb@rcell2@'s functions.  
+
+<<eval=FALSE,echo=TRUE>>=
+d<-loadFrapPairs("path/to/my/data")
+@
+
+If you have the original tif images of the experiment in a different folder than the files described above, you can specify a \emph{img.path} parameter to \verb@loadFrapPairs@.
+
+<<eval=FALSE,echo=TRUE>>=
+d<-loadFrapPairs("path/to/my/data", img.path="path/to/my/images")
+@
+
+In some experiments, because of the way the were analyzed, there is one cell per position. This means that the mother might be in pos=1 and the daughter in pos=2. In order to deal with all datasets in a transparent manner, you can restructure these datasets. In the restructured data mother and daughter will have the same position number. In order to do the restructuring, the 'levData.txt' file must have a 'pairs' columns, with the pair number. 
+
+<<eval=FALSE,echo=TRUE>>=
+d<-restructurePairs(d)
+@
+
+If you haven't got a dataset to load, you can still go through this vignette using the example dataset. 
+
+<<echo=TRUE,eval=TRUE>>=
+data(YFP)
+@ 
+
+\section{Raw data visualization}
+
+Once loaded (and restructured) you can use rcell2's functions. For example to plot the time-course of all variables of pos 1 (Figure ~\ref{fig:f01}). 
+
+<<fig01,include=TRUE>>=
+cplot(d, c(f.cyt.d,f.cyt.m,f.nuc.d,f.nuc.m)~time, pos==1, geom=c("point","line")
+	, group=interaction(FRAP,variable)) + theme(legend.position=c(0.8,0.8))
+@
+
+\SweaveOpts{png = TRUE, pdf = FALSE}
+\setkeys{Gin}{width=0.8\textwidth}
+\begin{figure}
+\begin{center}
+<<fig=TRUE,echo=FALSE,width=5,height=5>>=
+print(
+<<fig01>> 
+)
+@
+\caption{Variables vs time for pos==1}
+\label{fig:f01}
+\end{center}
+\end{figure}
+
+You can also use rcell2 to create a image montage (Figure ~\ref{fig:img2})
+
+<<img2,include=TRUE,eval=FALSE>>=
+cimage(d, type + FRAP ~ t.index, channel="YFP", subset=pos==1 & t.index%%5==0, box.size=128/2-1
+	, contained.box=TRUE, normalize.group="FRAP")
+@
+
+<<include=FALSE,echo=FALSE,eval=TRUE>>= 
+if(require(EBImage,quietly=TRUE)){
+  writeImage(
+<<img2>>
+  ,'fig/NuclearFRAP-img2.jpg', quality=80)
+}
+@
+
+\setkeys{Gin}{width=1.0\textwidth}
+\begin{figure}
+\begin{center}
+\includegraphics[width=400pt]{fig/NuclearFRAP-img2.jpg}
+\caption{Image montage for pos 1}
+\label{fig:img2}
+\end{center}
+\end{figure}
+
+\section{Fitting the model}
+
+To fit the model to the data, you can use the function \verb@runModelFit@, which is a wrapper over modelFit.m. As most of \verb@NuclearFRAP@'s functions, there is also a 'pair' version of this function, that calls modelFit.m for both cells of a pair. This function is called \verb@runModelFitPair@. 
+
+<<echo=TRUE,eval=FALSE>>=
+param <- runModelFitPair(d[[pos==1,]],p=d$parameters)
+@ 
+
+The first argument for \verb@runModelFitPair@ is a data.frame, with the data for the pair. This can be easily done with \verb@d[[pos==1,]]@, that returns a data.frame for pos 1. The second parameter is a list containing a whole bunch of parameters for the fit. Check the help page for \verb@?FRAP.options@. This list (with default values) is saved in the \verb@parameters@ slot of the cell.data object.  The function returns a data.frame with columns \emph{type} (indicating if it is the mother or daughter cell), \emph{fit.index} (the index of the fit, for each cell), the cost of the fit and the values of all the parameters of the model.
+
+Once we have the set of optimal parameters, we'll probably want to see how well these parameters (and model structure) fit the data. For this we can use the function \verb@getSimDataPair@.
+
+<<echo=TRUE,eval=FALSE>>=
+sim.db<-getSimDataPair(d[[pos==1,]],param,p=d$parameters)
+sim.db<-restructureSimDataPair(sim.db)
+@ 
+
+The \verb@getSimDataPair@ function returns a data.frame with the nuclear and cytoplasmic fluorescence variables for the mother and daughter cell (and the expected standard deviation), for each time point. Because of the way the returned data.frame is organized, there are a lot of NAs. You can easily restructure this data.frame with the function \verb@restructureSimDataPair@, to a format more convenient for plotting. To do an overlay of the data and the model fit, you can use the \verb@cplot@ function from \verb@rcell2@ (Figure ~\ref{fig:f03}). 
+
+<<fig03,eval=FALSE>>=
+cplot(d, c(f.cyt.d,f.cyt.m,f.nuc.d,f.nuc.m)~time, pos==1, geom=c("point","line")
+	, group=interaction(FRAP,variable), alpha=0.5) +
+clayer(sim.db, value~time, geom=c("line"), group=interaction(FRAP,variable), alpha=1, width=1.5) 
+@
+
+<<fig03moc,echo=FALSE,include=TRUE>>=
+cplot(d, c(f.cyt.d,f.cyt.m,f.nuc.d,f.nuc.m)~time, pos==1, geom=c("point","line")
+	, group=interaction(FRAP,variable), alpha=0.5) + theme(legend.position=c(0.8,0.8)) +
+clayer(analysis_frapPair_pos1$sim.rdb, value~time, geom=c("line"), group=interaction(FRAP,variable), alpha=1, width=1.5) 
+@
+
+\SweaveOpts{png = TRUE, pdf = FALSE}
+\setkeys{Gin}{width=0.8\textwidth}
+\begin{figure}
+\begin{center}
+<<fig=TRUE,echo=FALSE,width=5,height=5>>=
+print(
+<<fig03moc>>
+)
+@
+\caption{Raw data and overlay fit, for pos 1}
+\label{fig:f03}
+\end{center}
+\end{figure}
+
+\section{Profile Likelihood Analysis}
+
+To get an idea of the uncertainty in the parameter estimation, we can do a profile likelihood analysis (\cite{raue}). The profile likelihood can be done in one dimension, fixing the value of a single parameter and leaving the others free to minimize the cost function. More interestingly for us, it can be done (and easily visualized) in two dimensions, fixing the value of two parameters, and leaving the others free. We are particularly interest in the kinetic parameters kI and kEVfrac (see model NuclearFrapModelParameterization.pdf). The region of uncertainty will be the region where the profile likelihood cost is equal to or lower than the minimal cost, plus a threshold. If we use a chi-square cost functions, and the residuals are normally distributed, we can get this threshold from the chi-square distribution with an alpha = 0.05 and the degrees of freedom equal to the total number of free parameters of the model (\cite{raue}). 
+
+\vspace{5 mm}
+
+\verb@NuclearFRAP@ has two functions to calculate the profile likelihood uncertainty region. The first one is \verb@runProfileLikelihoodContour@ (and \verb@runProfileLikelihoodContourPair@). This function works only for 2D profile likelihood analysis. Starting from the best fit point, it draws 'rays' in different directions (\emph{theta}) and calculates where the increase profile likelihood cost equals the threshold (\emph{boundaryCost}). It returns a data.frame with one point per direction. These points lie in the boundary of the uncertainty region. This method works well if the region is sort of \textbf{O} shaped, but fails if it is \textbf{U} shaped.
+
+\vspace{5 mm}
+
+The second method is implemented in \verb@runProfileLikelihoodGrid@. This method evaluates a profile likelihood cost in a regular grid in the parameter space. It works for both, 1D and 2D profile likelihood analysis. If the regular grid is not passed as an argument, \verb@runProfileLikelihoodGrid@ calls \verb@runProfileLikelihoodContour@ to get an estimation of the region it should sample. From the regular grid, the 2D confidence region can be calculated. This method can deal with \textbf{U} shaped regions, but is more computationally intense. The following command can take several minutes to complete.  
+
+<<echo=TRUE,eval=FALSE>>=
+PL.db<-runProfileLikelihoodGridPair(d[[pos==2,]],param,p=d$parameters,scan=c("kEVfrac","kI")
+	,boundaryCost=qchisq(p=c(0.05), df=9))
+@ 
+
+You can plot the 2D profile likelihood region with the \verb@plotPL2D@ function.
+
+<<fig04,eval=FALSE>>=
+plotPL2D(PL.db,x="kEVfrac",y="kI",param=param,signifCost=c(qchisq(p=c(0.05), df=9)))
+@ 
+
+\SweaveOpts{png = FALSE, pdf = TRUE}
+\setkeys{Gin}{width=0.8\textwidth}
+\begin{figure}
+\begin{center}
+<<fig=TRUE,echo=FALSE,width=5,height=5>>=
+print(plotPL2D(analysis_frapPair_pos1$PL.db,x="kEVfrac",y="kI",param=analysis_frapPair_pos1$param,signifCost=c(qchisq(p=c(0.05), df=9))))
+@
+\caption{Profile likelihood contour for kEVfrac and kI, for pos 1.}
+\label{fig:f04}
+\end{center}
+\end{figure}
+
+For each cell, two contours are plotted. The solid line corresponds to the contour calculated from the regular grid of points, calculated by \verb@runProfileLikelihoodGrid@. The dashed line is the contour as calculated by \verb@runProfileLikelihoodContour@. The points indicate the best fit for the mother 'm1' or daughter 'd1'. If several local minimum are found they are also shown in this plot as 'm2', 'd3', etc. The chi-square cost of each point is indicated.
+
+\section{Analyze FRAP pair}   
+
+Some 'high level' functions are included in the package. One of these is \verb@analyzeFrapPair@. This function calculates the fit and profile likelihood analysis on kI and kEVfrac, for a pair of cells. 
+
+<<echo=TRUE,eval=FALSE>>=
+fp<-analyzeFrapPair(d[[pos==1,]],d$parameters)
+@ 
+
+\verb@analyzeFrapPair@ returns a \emph{frapPair} object, that contains all the data from the analysis. The package also provides a \verb@plot@ method for this class (Figure ~\ref{fig:f05}). 
+
+<<echo=TRUE,eval=FALSE>>=
+plot(fp)
+@ 
+
+\SweaveOpts{png = TRUE, pdf = FALSE}
+\setkeys{Gin}{width=1.0\textwidth}
+\begin{figure}
+\begin{center}
+<<fig=TRUE,echo=FALSE,width=16,height=8>>=
+plot(analysis_frapPair_pos1)
+@
+\caption{Analysis of FRAP pair for pos 1}
+\label{fig:f05}
+\end{center}
+\end{figure}
+
+The create figure has several panels. The top left panels have the traces (points and thin lines) for the nuclear and cytoplasmic fluorescence, for mother and daughter. The panel title specifies on which cell the FRAP was done. These panels also have the model predictions, as solid lines of the color of the correspondent variable. When several local minima are find, the different predictions are plotted on these same panels. The gray shaded region corresponds to the model prediction of the standard deviation of the data. See the section on the determination of sigma for more details. 
+The dashed black lines are the \emph{swapped predictions}. This means that the model is fitted to the daughters data, using the optimal values of kI and kEVfrac for the mother (and leaving all other parameters free). If this line looks like a good fit to the data, this strongly suggest that the daughter's kinetic parameters are NOT significantly different to the mother's. The same analysis is done for the mother, using the fixing the kinetic parameters to the daughter's optimal value.
+
+The following panel to the right is the 2D profile likelihood analysis, for kI and kEVfrac. The local minima for the mother and daughter, and the profile likelihood regions are represented as explained before (see the Profile Likelihood Analysis section). The orange curves represent the \emph{instrumental boundaries} for the kinetic parameters. The dashed line in the upper right are the points that satisfy tau = Tsampling (where tau=1/(kI + kEVfrac), and Tsampling is the time gap between consecutive data points). The dashed curve in the lower left corner is that satisfy tau = Texperiemnt (where Texperiement is the length of the FRAP experiment). The dotted curves are analogous, but using Tsampling/2 and 2*Texperiemnt as boundaries.
+
+The table in the higher right panel gives the values of all parameters for the different local minima found. 
+
+The histograms in the lower left panels are the distribution of the residuals of the model (region shaded in gray), and the normal distribution using the mean and standard deviation of the residuals (green curve). The violet curve is the normal distribution, using mean zero and the standard deviation predicted by the model (see the section on the determination of sigma for more details). If the prediction of the sigma prediction is working, then the violet and green curve should coincide. These panels can also be used to determine if the residuals are normally distributed. 
+
+In the lower right corner the time course for the residuals are shown, for each variable. The black dotted lines are the predicted standard deviation for the data. These panels can be used to see if there is any tendency in the residuals, indicative that the fit is not good.        
+
+\section{Estimating Sigma}   
+
+The package has to methods to estimate sigma (the expected standard deviation of the data). The first one called "SIGMA.FUN", uses a user defined function to calculate sigma from the fluorescent level of the data. To use this method, modify the \verb@paramters@ slot of the cell.data object. 
+
+<<echo=TRUE,eval=FALSE>>=
+d$parameters$SIGMA.METHOD <- "SIGMA.FUN"
+d$parameters$SIGMA.FUN <- function(fl) 25 + 32 * fl
+@ 
+
+An alternative method, and the one used by default, is to estimate the noise from the "unused" data. When doing the FRAP on the daughter, the mother variables are being acquired, but they are not used for the model fitting. So the idea is to use them for the estimation of sigma. Because we want the residuals, we need some "prediction" to calculate them. The first 5 points of each FRAP are assumed to be constant and the remaining points are fitted to a loess curve. From this coarse model, the residual distribution is calculated. The sigma level is assumed to be constant for each cell. 
+
+For the second cell to be photobleached, this method works well. For the first cell to be photobleached, it tends to under estimate the standard deviation, probably because after the photobleaching there is a lower signal and consequently a lower noise level. To correct for this, the package assumes the noise is proportional to the fluorescence level and corrects the sigma by the ratio of the fluorescence levels. This correction is only applied to the first cell to be photobleached. To use this method set SIGMA.METHOD to "SINGLE.CELL.PAIR".
+
+<<echo=TRUE,eval=FALSE>>=
+d$parameters$SIGMA.METHOD <- "SINGLE.CELL.PAIR"
+@
+
+\section{Profile Likelihood Matrix}   
+
+A way to check if all parameters are identifiable is to do a \emph{profile likelihood matrix}, i.e. a matrix of plots where in each panel a 2D profile likelihood contour is shown, for the respective variables. In the diagonal, 1D profile likelihood cost curves are shown. To calculate all these profile likelihood analysis, you can use the high level function \verb@profileLikelihoodFrapPair@ and the correspondent plot method (Figure ~\ref{fig:f06}). Beware this is a very computationally expensive thing to do. It takes ~12hs to complete a single experiment (with ~10 pairs) in my Intel i5 quad-core.  
+
+<<echo=TRUE,eval=FALSE>>=
+PL <- profileLikelihoodFrapPair(d[[pos==1,]], d$parameters, 
+	vars=c("kEVfrac","kI","tot0","PBn","PBc","auto1n"), pairwise = TRUE) 
+plot(PL)
+@ 
+
+\SweaveOpts{png = TRUE, pdf = FALSE}
+\setkeys{Gin}{width=1.0\textwidth}
+\begin{figure}
+\begin{center}
+<<fig=TRUE,echo=FALSE,width=16,height=16>>=
+plot(profileLikelihood_pos1)
+@
+\caption{Profile Likelihood Matrix, for pos 1}
+\label{fig:f06}
+\end{center}
+\end{figure}
+
+\begin{thebibliography}{}
+
+\bibitem[Raue et al (2009)]{raue}
+A. Raue, C. Kreutz, T. Maiwald, J. Bachmann, M. Schilling, U. Klingm�ller and J. Timmer
+\newblock Structural and practical identifiability analysis of partially observed dynamical models by exploiting the profile likelihood
+\newblock \emph{BIOINFORMATICS} 25(15)1923-1929
+
+\end{thebibliography}
+
+\end{document}

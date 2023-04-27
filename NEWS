@@ -1,0 +1,9 @@
+Version 0.49.0
+* New model with deltaPBn1
+
+Version 0.47.2
+* Created functions for simulated data analysis getSimulatedNoiseData 
+* new function profileLikelihoodFrap (before only profileLikelihoodFrapPair was implemented)
+* new function decouplePairs and decoupleTable, transforms one-pos-one-pair data to one-pos-one-cell data.
+* implemented SIGMA.METHOD "FROM.DATA", to be able to retain the sigma estimation in the decoupled datasets
+
