@@ -20,11 +20,11 @@ Following, is a brief description of the main steps of the protocol, intended to
 
 * Create the following files:
 
-- levData (or posData): a tab delimited text file, with the description of each position. This file should have columns 'lev' (or 'pos') with the position number, 'pb' with the photobleaching order, and other columns describing the strain, cytokinesis state, etc.
-- OIF-date.txt: text file with the image capture date of each OIF file. This can be created by running:
+** levData (or posData): a tab delimited text file, with the description of each position. This file should have columns 'lev' (or 'pos') with the position number, 'pb' with the photobleaching order, and other columns describing the strain, cytokinesis state, etc.
+** OIF-date.txt: text file with the image capture date of each OIF file. This can be created by running:
 sfk filter -ls+"ImageCaputre" -file .txt > OIF-date.txt
 There is a script for creating this file available at the NuclearFRAP extras project
-- lev??-tif-fname.txt: text file with the file names of all the tif files of the position
+** lev??-tif-fname.txt: text file with the file names of all the tif files of the position
 There is a script for creating this file available at the darksideoftheshmoo/NuclearFRAP extras project
 
 * Run the fitting and analysis of the data using NuclearFRAP
